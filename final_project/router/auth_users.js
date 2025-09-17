@@ -35,8 +35,8 @@ const authenticatedUser = (username,password)=>{ //returns boolean
 
 //only registered users can login
 regd_users.post("/login", (req,res) => {
-    const username = req.query.username;
-    const password = req.query.password;
+     const username = req.body.username || req.query.username;
+     const password = req.body.password || req.query.password;
   
     if (!username || !password) {
         return res.status(404).json({message: "Error logging in"});
@@ -81,6 +81,51 @@ regd_users.put("/auth/review/:isbn", (req, res) => {
       }
 });
 
+//Task-9: Delete a book review for authenticated users
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+    try {
+      // Extract ISBN from URL parameters
+      // Example: /auth/review/12345 → requestedIsbn = "12345"
+      const requestedIsbn = req.params.isbn;
+      
+      // Retrieve username from session authentication
+      // Requires user to be logged in with valid session
+      const username = req.session.authorization.username;
+  
+      // Check if user is authenticated
+      if (!username) {
+        return res.status(401).json({ message: "Unauthorized" }); // HTTP 401: Authentication required
+      }
+  
+      // Look up the book by ISBN in the books database
+      const book = books[requestedIsbn];
+  
+      // Check if the book exists
+      if (book) {
+        // Verify if the current user has a review for this book
+        if (book.reviews[username]) {
+          // Remove the user's review from the book's reviews object
+          delete book.reviews[username];
+          
+          // Return success response with confirmation message
+          res.json({ message: "Review deleted successfully" });
+        } else {
+          // User doesn't have a review for this book
+          res.status(404).json({ message: "Review not found" }); // HTTP 404: Resource not found
+        }
+      } else {
+        // Book with the specified ISBN doesn't exist
+        res.status(404).json({ message: "Book not found" }); // HTTP 404: Resource not found
+      }
+    } catch (error) {
+      // Log the detailed error for debugging purposes
+      console.error("Delete review error:", error);
+      
+      // Return generic error message to client
+      res.status(500).json({ message: "Error deleting review" }); // HTTP 500: Internal server error
+    }
+  });
+  
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
 module.exports.users = users;
